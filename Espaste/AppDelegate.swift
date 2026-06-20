@@ -58,6 +58,7 @@ extension AppDelegate: NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
 
         _ = EventMonitors.shared
+        _ = ClipboardStore.shared
         let timer = Timer.scheduledTimer(
             withTimeInterval: 1,
             repeats: true
