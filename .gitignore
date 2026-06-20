@@ -1,0 +1,72 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+DerivedData/
+*.xcworkspace
+!default.xcworkspace
+*.xcuserstate
+*.xcuserdatad
+*.xcsettings
+*.xcshareddata/WorkspaceSettings.xcsettings
+*.xcshareddata/IDEWorkspaceChecks.plist
+
+# Xcode Swift Package Manager
+/.build/
+/Packages/
+.swiftpm/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# Archives
+*.xcarchive
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+Package.resolved
+
+# User settings
+*.swp
+*~
+*.tmp
+*.log
+
+# App-specific
+*.ipa
+*.dSYM
+*.mobileprovision
+
+# Misc
+*.moved-aside
+*.orig
+
+env.local
+
+# IDE settings
+.idea/
+.vscode/
+
+# Swift PM hidden
+.build/
+.dmg
+.pkg
+
+# temp
+*.lock
