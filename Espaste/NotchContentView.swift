@@ -576,16 +576,17 @@ private struct SelectionButton: View {
                             .foregroundStyle(.white, .blue)
                             .font(.system(size: 17))
                     } else {
-                        Image(systemName: "circle")
-                            .foregroundStyle(Color.white.opacity(0.55))
+                        Image(systemName: "circle.fill")
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .black.opacity(0.42))
                             .font(.system(size: 17))
                     }
                 } else {
                     Image(systemName: typeIcon)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.55))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white)
                         .frame(width: 28, height: 24)
-                        .background(Color.white.opacity(0.08))
+                        .background(.black.opacity(0.42))
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
             }
@@ -613,10 +614,10 @@ private struct CardActionButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(highlighted ? tint : Color.white.opacity(0.55))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(highlighted ? tint : .white)
                 .frame(width: 28, height: 24)
-                .background(highlighted ? tint.opacity(0.18) : Color.white.opacity(0.08))
+                .background(.black.opacity(highlighted ? 0.6 : 0.42))
                 .clipShape(RoundedRectangle(cornerRadius: 5))
         }
         .buttonStyle(.plain)
