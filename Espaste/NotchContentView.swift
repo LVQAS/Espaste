@@ -519,6 +519,14 @@ private struct ClipboardItemCard: View {
             return ClipboardDrag.itemProvider(for: items.isEmpty ? [item] : items)
         }
         .contextMenu {
+            if item.contentType == .url, let url = URL(string: item.text) {
+                Button {
+                    NSWorkspace.shared.open(url)
+                } label: {
+                    Label("Open", systemImage: "arrow.up.forward.square")
+                }
+                Divider()
+            }
             Button {
                 onFavorite()
             } label: {
@@ -545,12 +553,12 @@ private struct ClipboardItemCard: View {
         let s = Int(-date.timeIntervalSinceNow)
         guard s >= 60 else { return "now" }
         let m = s / 60
-        guard m >= 60 else { return "\(m) min" }
+        guard m >= 60 else { return "\(m) min ago" }
         let h = m / 60
-        guard h >= 24 else { return "\(h)h" }
+        guard h >= 24 else { return "\(h)h ago" }
         let d = h / 24
-        guard d >= 7 else { return "\(d)d" }
-        return "\(d / 7)w"
+        guard d >= 7 else { return "\(d)d ago" }
+        return "\(d / 7)w ago"
     }
 
     @ViewBuilder var appIcon: some View {
