@@ -568,30 +568,13 @@ private struct SelectionButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                if showsCircle {
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .blue)
-                            .font(.system(size: 17))
-                    } else {
-                        Image(systemName: "circle.fill")
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.42))
-                            .font(.system(size: 17))
-                    }
-                } else {
-                    Image(systemName: typeIcon)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 24)
-                        .background(.black.opacity(0.42))
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
-                }
-            }
-            .frame(width: 28, height: 24)
-            .contentShape(Rectangle())
+            Image(systemName: showsCircle ? (isSelected ? "checkmark" : "circle") : typeIcon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isSelected ? Color.blue : .white)
+                .frame(width: 28, height: 24)
+                .background(.black.opacity(isSelected ? 0.6 : 0.42))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
