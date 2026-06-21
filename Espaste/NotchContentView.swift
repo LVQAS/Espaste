@@ -174,8 +174,8 @@ private struct ClipboardView: View {
             .frame(width: baseChipsWidth > 0 ? baseChipsWidth : nil, height: 34)
             .background(Color.white.opacity(0.05))
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
             .overlay(IBeamCursorArea().allowsHitTesting(false))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
 
             Spacer()
 
