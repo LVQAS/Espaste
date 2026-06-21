@@ -126,11 +126,16 @@ private struct ClipboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if isSelecting {
-                selectionBar
-            } else {
-                searchBar
+            ZStack {
+                if isSelecting {
+                    selectionBar
+                        .transition(.opacity)
+                } else {
+                    searchBar
+                        .transition(.opacity)
+                }
             }
+            .animation(vm.contentAnimation, value: isSelecting)
             Divider().opacity(0.2)
             filterRow
             Divider().opacity(0.2)
