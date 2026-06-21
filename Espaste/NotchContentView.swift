@@ -34,8 +34,11 @@ private struct ClipboardView: View {
     @ObservedObject private var store = ClipboardStore.shared
     @State private var searchText = ""
     @State private var selectedFilter: FilterType = .all
+    @State private var selectedIDs: Set<UUID> = []
 
     enum FilterType { case favorites, apps, clipboard, all }
+
+    private var isSelecting: Bool { !selectedIDs.isEmpty }
 
     var filteredItems: [ClipboardItem] {
         var result = store.items
@@ -46,9 +49,32 @@ private struct ClipboardView: View {
         return result
     }
 
+    private func toggleSelection(_ item: ClipboardItem) {
+        if selectedIDs.contains(item.id) {
+            selectedIDs.remove(item.id)
+        } else {
+            selectedIDs.insert(item.id)
+        }
+    }
+
+    private func copySelected() {
+        let items = filteredItems.filter { selectedIDs.contains($0.id) }
+        store.copyToClipboard(items)
+        selectedIDs.removeAll()
+    }
+
+    private func deleteSelected() {
+        store.delete(ids: selectedIDs)
+        selectedIDs.removeAll()
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            searchBar
+            if isSelecting {
+                selectionBar
+            } else {
+                searchBar
+            }
             Divider().opacity(0.2)
             filterRow
             Divider().opacity(0.2)
@@ -88,7 +114,49 @@ private struct ClipboardView: View {
             .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .frame(height: 44)
+    }
+
+    var selectionBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { selectedIDs.removeAll() }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+
+            Text("\(selectedIDs.count) selected")
+                .font(.system(size: 13, weight: .medium))
+
+            Spacer()
+
+            Button { copySelected() } label: {
+                Image(systemName: "square.on.square")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 26)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { deleteSelected() }
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 26)
+                    .background(Color.red)
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 44)
     }
 
     var filterRow: some View {
@@ -124,13 +192,17 @@ private struct ClipboardView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 8) {
                 ForEach(filteredItems) { item in
-                    ClipboardItemCard(item: item) {
-                        store.copyToClipboard(item)
-                    } onFavorite: {
-                        store.toggleFavorite(item)
-                    } onDelete: {
-                        store.delete(item)
-                    }
+                    ClipboardItemCard(
+                        item: item,
+                        isSelecting: isSelecting,
+                        isSelected: selectedIDs.contains(item.id),
+                        onTap: { store.copyToClipboard(item) },
+                        onToggleSelect: {
+                            withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(item) }
+                        },
+                        onFavorite: { store.toggleFavorite(item) },
+                        onDelete: { store.delete(item) }
+                    )
                 }
             }
             .padding(.horizontal, 12)
@@ -159,29 +231,40 @@ private struct ClipboardView: View {
 
 private struct ClipboardItemCard: View {
     let item: ClipboardItem
+    var isSelecting: Bool = false
+    var isSelected: Bool = false
     let onTap: () -> Void
+    var onToggleSelect: () -> Void = {}
     let onFavorite: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovered = false
 
+    private var topRowVisible: Bool { isHovered || isSelecting }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 4) {
-                CardActionButton(icon: "square.and.arrow.down.on.square", action: onTap)
-                Spacer()
-                CardActionButton(icon: "trash", tint: .red, action: onDelete)
-                CardActionButton(
-                    icon: item.isFavorite ? "star.fill" : "star",
-                    tint: .yellow,
-                    isActive: item.isFavorite,
-                    action: onFavorite
+                SelectionButton(
+                    isSelecting: isSelecting,
+                    isSelected: isSelected,
+                    action: onToggleSelect
                 )
+                Spacer()
+                if !isSelecting {
+                    CardActionButton(icon: "trash", tint: .red, action: onDelete)
+                    CardActionButton(
+                        icon: item.isFavorite ? "star.fill" : "star",
+                        tint: .yellow,
+                        isActive: item.isFavorite,
+                        action: onFavorite
+                    )
+                }
             }
             .padding(.horizontal, 6)
             .padding(.top, 5)
             .padding(.bottom, 2)
-            .opacity(isHovered ? 1 : 0)
+            .opacity(topRowVisible ? 1 : 0)
 
             Divider().opacity(0.12)
 
@@ -194,7 +277,7 @@ private struct ClipboardItemCard: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
-                .onTapGesture(perform: onTap)
+                .onTapGesture { isSelecting ? onToggleSelect() : onTap() }
 
             Divider().opacity(0.12)
 
@@ -223,10 +306,12 @@ private struct ClipboardItemCard: View {
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(
-                    item.isFavorite
-                        ? Color.yellow.opacity(0.5)
-                        : Color.white.opacity(isHovered ? 0.4 : 0),
-                    lineWidth: 0.5
+                    isSelected
+                        ? Color.white.opacity(0.6)
+                        : item.isFavorite
+                            ? Color.yellow.opacity(0.5)
+                            : Color.white.opacity(isHovered ? 0.4 : 0),
+                    lineWidth: isSelected ? 1 : 0.5
                 )
         )
         .scaleEffect(isHovered ? 1.04 : 1.0)
@@ -276,6 +361,50 @@ private struct ClipboardItemCard: View {
                 .frame(width: 14, height: 14)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
         }
+    }
+}
+
+// MARK: - SelectionButton
+
+private struct SelectionButton: View {
+    let isSelecting: Bool
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    // Show a circle while selecting, or when hovering the button in normal mode.
+    private var showsCircle: Bool { isSelecting || isHovered }
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                if showsCircle {
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .blue)
+                            .font(.system(size: 17))
+                    } else {
+                        Image(systemName: "circle")
+                            .foregroundStyle(Color.white.opacity(0.55))
+                            .font(.system(size: 17))
+                    }
+                } else {
+                    Image(systemName: "text.alignleft")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.55))
+                        .frame(width: 28, height: 24)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                }
+            }
+            .frame(width: 28, height: 24)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeInOut(duration: 0.12), value: showsCircle)
     }
 }
 

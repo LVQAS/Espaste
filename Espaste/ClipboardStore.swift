@@ -94,8 +94,24 @@ class ClipboardStore: ObservableObject {
         lastChangeCount = pb.changeCount
     }
 
+    // Copies several items at once (newline-joined) without creating a new history entry.
+    func copyToClipboard(_ multiple: [ClipboardItem]) {
+        guard !multiple.isEmpty else { return }
+        skipNextChange = true
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(multiple.map(\.text).joined(separator: "\n"), forType: .string)
+        pb.setString("1", forType: internalCopyMarker)
+        lastChangeCount = pb.changeCount
+    }
+
     func delete(_ item: ClipboardItem) {
         items.removeAll { $0.id == item.id }
+        save()
+    }
+
+    func delete(ids: Set<UUID>) {
+        items.removeAll { ids.contains($0.id) }
         save()
     }
 
