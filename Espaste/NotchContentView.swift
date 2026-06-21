@@ -36,14 +36,50 @@ private struct ClipboardView: View {
     @State private var searchText = ""
     @State private var selectedFilter: FilterType = .all
     @State private var selectedIDs: Set<UUID> = []
+    @State private var showSources = false
+    @State private var selectedSource: String? = nil
 
     enum FilterType { case favorites, apps, clipboard, all }
 
+    struct Source: Identifiable {
+        let id: String        // bundleID, or app name as fallback
+        let name: String      // display name, e.g. "Firefox.app"
+        let bundleID: String?
+        let count: Int
+    }
+
     private var isSelecting: Bool { !selectedIDs.isEmpty }
+
+    private func sourceKey(_ item: ClipboardItem) -> String {
+        item.appBundleID ?? item.appName ?? "Unknown"
+    }
+
+    var sources: [Source] {
+        var counts: [String: Int] = [:]
+        var order: [String] = []
+        for item in store.items {
+            let key = sourceKey(item)
+            if counts[key] == nil { order.append(key) }
+            counts[key, default: 0] += 1
+        }
+        return order.map { key in
+            let sample = store.items.first { sourceKey($0) == key }
+            var name = sample?.appName ?? "Unknown"
+            if let bid = sample?.appBundleID,
+               let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid) {
+                name = url.deletingPathExtension().lastPathComponent
+            }
+            return Source(id: key, name: name, bundleID: sample?.appBundleID, count: counts[key] ?? 0)
+        }
+        .sorted { $0.count > $1.count }
+    }
 
     var filteredItems: [ClipboardItem] {
         var result = store.items
         if selectedFilter == .favorites { result = result.filter { $0.isFavorite } }
+        if let source = selectedSource {
+            result = result.filter { sourceKey($0) == source }
+        }
         if !searchText.isEmpty {
             result = result.filter { $0.text.localizedCaseInsensitiveContains(searchText) }
         }
@@ -161,32 +197,50 @@ private struct ClipboardView: View {
     }
 
     var filterRow: some View {
-        HStack(spacing: 6) {
-            FilterChip(icon: "star.fill", isSelected: selectedFilter == .favorites) {
-                selectedFilter = selectedFilter == .favorites ? .all : .favorites
-            }
-            FilterChip(icon: "square.grid.2x2", isSelected: selectedFilter == .apps) {
-                selectedFilter = selectedFilter == .apps ? .all : .apps
-            }
-            FilterChip(icon: "doc.on.clipboard", isSelected: selectedFilter == .clipboard) {
-                selectedFilter = selectedFilter == .clipboard ? .all : .clipboard
-            }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                FilterChip(icon: "star.fill", isSelected: selectedFilter == .favorites) {
+                    selectedFilter = selectedFilter == .favorites ? .all : .favorites
+                }
+                FilterChip(icon: "square.grid.2x2", isSelected: selectedFilter == .apps) {
+                    selectedFilter = selectedFilter == .apps ? .all : .apps
+                }
+                FilterChip(icon: "app.background.dotted", isSelected: showSources) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showSources.toggle()
+                        if !showSources { selectedSource = nil }
+                    }
+                }
 
-            Button { selectedFilter = .all } label: {
-                Text("All")
-                    .font(.system(size: 13, weight: .medium))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
-                    .background(selectedFilter == .all ? Color.white : Color.white.opacity(0.1))
-                    .foregroundStyle(selectedFilter == .all ? Color.black : Color.white)
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
+                Button {
+                    selectedFilter = .all
+                    selectedSource = nil
+                } label: {
+                    Text("All")
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 5)
+                        .background(allSelected ? Color.white : Color.white.opacity(0.1))
+                        .foregroundStyle(allSelected ? Color.black : Color.white)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
 
-            Spacer()
+                if showSources {
+                    ForEach(sources) { source in
+                        SourceChip(source: source, isSelected: selectedSource == source.id) {
+                            selectedSource = selectedSource == source.id ? nil : source.id
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
+    }
+
+    private var allSelected: Bool {
+        selectedFilter == .all && selectedSource == nil
     }
 
     var itemList: some View {
@@ -538,6 +592,44 @@ private struct FilterChip: View {
                 .foregroundStyle(isSelected ? Color.white : Color.secondary)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - SourceChip
+
+private struct SourceChip: View {
+    let source: ClipboardView.Source
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                icon
+                Text(source.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                Text("\(source.count)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(isSelected ? Color.black.opacity(0.6) : Color.white.opacity(0.5))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(isSelected ? Color.white : Color.white.opacity(0.1))
+            .foregroundStyle(isSelected ? Color.black : Color.white)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder var icon: some View {
+        if let bundleID = source.bundleID,
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                .resizable()
+                .frame(width: 15, height: 15)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+        }
     }
 }
 
