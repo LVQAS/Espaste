@@ -38,6 +38,7 @@ private struct ClipboardView: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var showSources = false
     @State private var selectedSource: String? = nil
+    @FocusState private var searchFocused: Bool
 
     enum FilterType { case favorites, apps, clipboard, all }
 
@@ -123,6 +124,7 @@ private struct ClipboardView: View {
         }
         .background(.black)
         .clipShape(RoundedRectangle(cornerRadius: vm.cornerRadius))
+        .simultaneousGesture(TapGesture().onEnded { searchFocused = false })
     }
 
     var searchBar: some View {
@@ -133,6 +135,7 @@ private struct ClipboardView: View {
             TextField("Search", text: $searchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .focused($searchFocused)
             if !searchText.isEmpty {
                 Button { searchText = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -150,8 +153,17 @@ private struct ClipboardView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
         }
+        .padding(.horizontal, 10)
+        .frame(height: 34)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
         .padding(.horizontal, 12)
+        .padding(.vertical, 5)
         .frame(height: 44)
+        .onHover { hovering in
+            if hovering { NSCursor.iBeam.push() } else { NSCursor.pop() }
+        }
     }
 
     var selectionBar: some View {
