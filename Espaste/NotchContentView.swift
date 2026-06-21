@@ -38,9 +38,11 @@ private struct ClipboardView: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var showSources = false
     @State private var selectedSource: String? = nil
+    @State private var showTypes = false
+    @State private var selectedContentType: ClipboardItem.ContentType? = nil
     @FocusState private var searchFocused: Bool
 
-    enum FilterType { case favorites, apps, clipboard, all }
+    enum FilterType { case favorites, all }
 
     struct Source: Identifiable {
         let id: String        // bundleID, or app name as fallback
@@ -55,16 +57,23 @@ private struct ClipboardView: View {
         item.appBundleID ?? item.appName ?? "Unknown"
     }
 
+    // Items after the favorites filter only — basis for chip availability.
+    var preFilterItems: [ClipboardItem] {
+        selectedFilter == .favorites
+            ? store.items.filter(\.isFavorite)
+            : store.items
+    }
+
     var sources: [Source] {
         var counts: [String: Int] = [:]
         var order: [String] = []
-        for item in store.items {
+        for item in preFilterItems {
             let key = sourceKey(item)
             if counts[key] == nil { order.append(key) }
             counts[key, default: 0] += 1
         }
         return order.map { key in
-            let sample = store.items.first { sourceKey($0) == key }
+            let sample = preFilterItems.first { sourceKey($0) == key }
             var name = sample?.appName ?? "Unknown"
             if let bid = sample?.appBundleID,
                let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid) {
@@ -75,11 +84,20 @@ private struct ClipboardView: View {
         .sorted { $0.count > $1.count }
     }
 
+    var availableContentTypes: Set<ClipboardItem.ContentType> {
+        Set(preFilterItems.map(\.contentType))
+    }
+
+    var baseItems: [ClipboardItem] {
+        var result = preFilterItems
+        if let source = selectedSource { result = result.filter { sourceKey($0) == source } }
+        return result
+    }
+
     var filteredItems: [ClipboardItem] {
-        var result = store.items
-        if selectedFilter == .favorites { result = result.filter { $0.isFavorite } }
-        if let source = selectedSource {
-            result = result.filter { sourceKey($0) == source }
+        var result = baseItems
+        if let type = selectedContentType {
+            result = result.filter { $0.contentType == type }
         }
         if !searchText.isEmpty {
             result = result.filter { $0.text.localizedCaseInsensitiveContains(searchText) }
@@ -210,15 +228,22 @@ private struct ClipboardView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 FilterChip(icon: "star.fill", isSelected: selectedFilter == .favorites) {
-                    selectedFilter = selectedFilter == .favorites ? .all : .favorites
+                    withAnimation(vm.contentAnimation) {
+                        selectedFilter = selectedFilter == .favorites ? .all : .favorites
+                    }
                 }
-                FilterChip(icon: "square.grid.2x2", isSelected: selectedFilter == .apps) {
-                    selectedFilter = selectedFilter == .apps ? .all : .apps
+                FilterChip(icon: "square.2.layers.3d", isSelected: showTypes) {
+                    withAnimation(vm.contentAnimation) {
+                        showTypes.toggle()
+                        if !showTypes { selectedContentType = nil }
+                        if showTypes { showSources = false; selectedSource = nil }
+                    }
                 }
                 FilterChip(icon: "app.background.dotted", isSelected: showSources) {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(vm.contentAnimation) {
                         showSources.toggle()
                         if !showSources { selectedSource = nil }
+                        if showSources { showTypes = false; selectedContentType = nil }
                     }
                 }
 
@@ -239,8 +264,28 @@ private struct ClipboardView: View {
                 if showSources {
                     ForEach(sources) { source in
                         SourceChip(source: source, isSelected: selectedSource == source.id) {
-                            selectedSource = selectedSource == source.id ? nil : source.id
+                            withAnimation(vm.contentAnimation) {
+                                selectedSource = selectedSource == source.id ? nil : source.id
+                            }
                         }
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    }
+                }
+
+                if showTypes {
+                    if availableContentTypes.contains(.url) {
+                        TypeChip(icon: "link", label: "Link",
+                                 isSelected: selectedContentType == .url) {
+                            selectedContentType = selectedContentType == .url ? nil : .url
+                        }
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    }
+                    if availableContentTypes.contains(.text) {
+                        TypeChip(icon: "text.alignleft", label: "Text",
+                                 isSelected: selectedContentType == .text) {
+                            selectedContentType = selectedContentType == .text ? nil : .text
+                        }
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
                 }
             }
@@ -274,10 +319,12 @@ private struct ClipboardView: View {
                             return [item]
                         }
                     )
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
+            .animation(vm.contentAnimation, value: selectedSource)
         }
         .frame(height: 132)
     }
@@ -674,6 +721,32 @@ private struct SourceChip: View {
                 .frame(width: 15, height: 15)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
         }
+    }
+}
+
+// MARK: - TypeChip
+
+private struct TypeChip: View {
+    let icon: String
+    let label: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
+                Text(label)
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(isSelected ? Color.white : Color.white.opacity(0.1))
+            .foregroundStyle(isSelected ? Color.black : Color.white)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 

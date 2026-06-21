@@ -24,6 +24,9 @@ class NotchViewModel: NSObject, ObservableObject {
     }
 
     let animation: Animation = .spring(response: 0.4, dampingFraction: 0.82)
+    // Smooth content animation for in-app transitions (filtering, bar swaps, chips).
+    // Mirrors boring.notch's `.smooth(duration: 0.35)` feel.
+    let contentAnimation: Animation = .smooth(duration: 0.3)
     @Published var notchOpenedSize: CGSize = .init(width: 720, height: 260)
     let dropDetectorRange: CGFloat = 32
 
