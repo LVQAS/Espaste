@@ -177,7 +177,7 @@ private struct ClipboardView: View {
             .overlay(IBeamCursorArea().allowsHitTesting(false))
 
             Button {
-                vm.contentType = .menu
+                SettingsWindowController.shared.showWindow(vm: vm)
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 14))
