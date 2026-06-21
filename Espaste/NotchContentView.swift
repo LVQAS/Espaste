@@ -5,6 +5,7 @@
 
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct NotchContentView: View {
     @StateObject var vm: NotchViewModel
@@ -201,7 +202,13 @@ private struct ClipboardView: View {
                             withAnimation(.easeInOut(duration: 0.15)) { toggleSelection(item) }
                         },
                         onFavorite: { store.toggleFavorite(item) },
-                        onDelete: { store.delete(item) }
+                        onDelete: { store.delete(item) },
+                        dragItems: {
+                            if isSelecting, selectedIDs.contains(item.id) {
+                                return filteredItems.filter { selectedIDs.contains($0.id) }
+                            }
+                            return [item]
+                        }
                     )
                 }
             }
@@ -237,6 +244,7 @@ private struct ClipboardItemCard: View {
     var onToggleSelect: () -> Void = {}
     let onFavorite: () -> Void
     let onDelete: () -> Void
+    var dragItems: () -> [ClipboardItem] = { [] }
 
     @State private var isHovered = false
     @State private var showCopied = false
@@ -340,6 +348,10 @@ private struct ClipboardItemCard: View {
         .scaleEffect(isHovered ? 1.04 : 1.0)
         .onHover { isHovered = $0 }
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovered)
+        .onDrag {
+            let items = dragItems()
+            return ClipboardDrag.itemProvider(for: items.isEmpty ? [item] : items)
+        }
         .contextMenu {
             Button {
                 onFavorite()
@@ -384,6 +396,57 @@ private struct ClipboardItemCard: View {
                 .frame(width: 14, height: 14)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
         }
+    }
+}
+
+// MARK: - ClipboardDrag
+
+/// Builds the drag payload for one or more clipboard items.
+/// Offers plain text (for editors) and a .txt file promise (for Finder).
+enum ClipboardDrag {
+    static func itemProvider(for items: [ClipboardItem]) -> NSItemProvider {
+        let text = items.map(\.text).joined(separator: "\n")
+        let name = fileName(for: items)
+
+        let provider = NSItemProvider()
+        provider.suggestedName = name
+
+        // Plain text — dropped into a text editor / field.
+        provider.registerDataRepresentation(
+            forTypeIdentifier: UTType.utf8PlainText.identifier,
+            visibility: .all
+        ) { completion in
+            completion(text.data(using: .utf8), nil)
+            return nil
+        }
+
+        // File promise — dropped into a Finder folder, writes a .txt file.
+        provider.registerFileRepresentation(
+            forTypeIdentifier: UTType.plainText.identifier,
+            fileOptions: [],
+            visibility: .all
+        ) { completion in
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+            do {
+                try text.write(to: url, atomically: true, encoding: .utf8)
+                completion(url, false, nil)
+            } catch {
+                completion(nil, false, error)
+            }
+            return nil
+        }
+        return provider
+    }
+
+    static func fileName(for items: [ClipboardItem]) -> String {
+        guard items.count == 1 else { return "Clipboard Items.txt" }
+        let firstLine = items[0].text.components(separatedBy: .newlines).first ?? ""
+        let safe = firstLine
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        let base = String(safe.prefix(40))
+        return (base.isEmpty ? "Clipboard" : base) + ".txt"
     }
 }
 
