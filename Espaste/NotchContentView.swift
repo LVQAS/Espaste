@@ -239,19 +239,43 @@ private struct ClipboardItemCard: View {
     let onDelete: () -> Void
 
     @State private var isHovered = false
+    @State private var showCopied = false
 
-    private var topRowVisible: Bool { isHovered || isSelecting }
+    private var topRowVisible: Bool { isHovered || isSelecting || showCopied }
+
+    private func handleTap() {
+        onTap()
+        showCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            showCopied = false
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 4) {
-                SelectionButton(
-                    isSelecting: isSelecting,
-                    isSelected: isSelected,
-                    action: onToggleSelect
-                )
+                if showCopied {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text("Copied")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.15))
+                    .clipShape(Capsule())
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                } else {
+                    SelectionButton(
+                        isSelecting: isSelecting,
+                        isSelected: isSelected,
+                        action: onToggleSelect
+                    )
+                }
                 Spacer()
-                if !isSelecting {
+                if !isSelecting && !showCopied {
                     CardActionButton(icon: "trash", tint: .red, action: onDelete)
                     CardActionButton(
                         icon: item.isFavorite ? "star.fill" : "star",
@@ -265,6 +289,7 @@ private struct ClipboardItemCard: View {
             .padding(.top, 5)
             .padding(.bottom, 2)
             .opacity(topRowVisible ? 1 : 0)
+            .animation(.easeInOut(duration: 0.15), value: showCopied)
 
             Divider().opacity(0.12)
 
@@ -277,7 +302,7 @@ private struct ClipboardItemCard: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
-                .onTapGesture { isSelecting ? onToggleSelect() : onTap() }
+                .onTapGesture { isSelecting ? onToggleSelect() : handleTap() }
 
             Divider().opacity(0.12)
 
@@ -308,9 +333,7 @@ private struct ClipboardItemCard: View {
                 .strokeBorder(
                     isSelected
                         ? Color.white.opacity(0.6)
-                        : item.isFavorite
-                            ? Color.yellow.opacity(0.5)
-                            : Color.white.opacity(isHovered ? 0.4 : 0),
+                        : Color.white.opacity(isHovered ? 0.4 : 0),
                     lineWidth: isSelected ? 1 : 0.5
                 )
         )
