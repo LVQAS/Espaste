@@ -158,12 +158,10 @@ private struct ClipboardView: View {
         .background(Color.white.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+        .overlay(IBeamCursorArea().allowsHitTesting(false))
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .frame(height: 44)
-        .onHover { hovering in
-            if hovering { NSCursor.iBeam.push() } else { NSCursor.pop() }
-        }
     }
 
     var selectionBar: some View {
@@ -676,6 +674,30 @@ private struct SourceChip: View {
                 .frame(width: 15, height: 15)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
         }
+    }
+}
+
+// MARK: - IBeamCursorArea
+
+/// NSViewRepresentable that reliably sets the I-beam cursor via AppKit's tracking-area
+/// mechanism. Works even when the host window is not key (.activeAlways).
+private struct IBeamCursorArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> CursorView { CursorView() }
+    func updateNSView(_ nsView: CursorView, context: Context) {}
+
+    class CursorView: NSView {
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach { removeTrackingArea($0) }
+            addTrackingArea(NSTrackingArea(
+                rect: .zero,
+                options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            ))
+        }
+        override func mouseEntered(with event: NSEvent) { NSCursor.iBeam.set() }
+        override func mouseExited(with event: NSEvent)  { NSCursor.arrow.set() }
     }
 }
 
