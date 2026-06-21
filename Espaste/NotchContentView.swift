@@ -542,10 +542,8 @@ private struct ClipboardItemCard: View {
     }
 
     @ViewBuilder var appIcon: some View {
-        if let bundleID = item.appBundleID,
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
-        {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+        if let icon = AppIconCache.icon(for: item.appBundleID) {
+            Image(nsImage: icon)
                 .resizable()
                 .frame(width: 14, height: 14)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -714,13 +712,31 @@ private struct SourceChip: View {
     }
 
     @ViewBuilder var icon: some View {
-        if let bundleID = source.bundleID,
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+        if let icon = AppIconCache.icon(for: source.bundleID) {
+            Image(nsImage: icon)
                 .resizable()
                 .frame(width: 15, height: 15)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
         }
+    }
+}
+
+// MARK: - AppIconCache
+
+/// Caches app icons by bundle ID. `NSWorkspace.icon(forFile:)` returns a fresh
+/// NSImage each call, which makes SwiftUI reload (and flicker) the image during
+/// re-renders. Returning the same cached instance avoids that.
+enum AppIconCache {
+    private static var cache: [String: NSImage] = [:]
+
+    static func icon(for bundleID: String?) -> NSImage? {
+        guard let bundleID else { return nil }
+        if let cached = cache[bundleID] { return cached }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+        else { return nil }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        cache[bundleID] = icon
+        return icon
     }
 }
 
