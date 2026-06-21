@@ -108,11 +108,14 @@ class ClipboardStore: ObservableObject {
 
     func delete(_ item: ClipboardItem) {
         items.removeAll { $0.id == item.id }
+        evictPreviewIfUnused(item)
         save()
     }
 
     func delete(ids: Set<UUID>) {
+        let removed = items.filter { ids.contains($0.id) }
         items.removeAll { ids.contains($0.id) }
+        removed.forEach(evictPreviewIfUnused)
         save()
     }
 
@@ -123,8 +126,17 @@ class ClipboardStore: ObservableObject {
     }
 
     func clearAll() {
+        let removed = items.filter { !$0.isFavorite }
         items.removeAll { !$0.isFavorite }
+        removed.forEach(evictPreviewIfUnused)
         save()
+    }
+
+    // Drops a URL item's cached preview, unless another remaining item shares the URL.
+    private func evictPreviewIfUnused(_ item: ClipboardItem) {
+        guard item.contentType == .url else { return }
+        guard !items.contains(where: { $0.text == item.text }) else { return }
+        LinkPreviewCache.shared.purge(for: item.text)
     }
 
     private func save() {

@@ -330,15 +330,15 @@ private struct ClipboardItemCard: View {
                 if showCopied {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                         Text("Copied")
                             .font(.system(size: 11, weight: .medium))
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.15))
-                    .clipShape(Capsule())
+                    .frame(height: 24)
+                    .background(.black.opacity(0.42))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
                 } else {
                     SelectionButton(
