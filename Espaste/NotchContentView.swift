@@ -126,7 +126,6 @@ private struct ClipboardView: View {
                 ForEach(filteredItems) { item in
                     ClipboardItemCard(item: item) {
                         store.copyToClipboard(item)
-                        vm.notchClose()
                     } onFavorite: {
                         store.toggleFavorite(item)
                     } onDelete: {
@@ -191,7 +190,7 @@ private struct ClipboardItemCard: View {
                 .foregroundStyle(.primary)
                 .lineLimit(3)
                 .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
@@ -219,7 +218,7 @@ private struct ClipboardItemCard: View {
             .padding(.vertical, 6)
         }
         .frame(width: 160, height: 112)
-        .background(isHovered ? Color.white.opacity(0.12) : Color.white.opacity(0.07))
+        .background(Color(red: 31/255, green: 31/255, blue: 31/255))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -243,8 +242,7 @@ private struct ClipboardItemCard: View {
                 )
             }
             Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(item.text, forType: .string)
+                ClipboardStore.shared.copyToClipboard(item)
             } label: {
                 Label("Copy", systemImage: "doc.on.doc")
             }
