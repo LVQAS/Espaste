@@ -40,6 +40,7 @@ private struct ClipboardView: View {
     @State private var selectedSource: String? = nil
     @State private var showTypes = false
     @State private var selectedContentType: ClipboardItem.ContentType? = nil
+    @State private var baseChipsWidth: CGFloat = 0
     @FocusState private var searchFocused: Bool
 
     enum FilterType { case favorites, all }
@@ -170,13 +171,16 @@ private struct ClipboardView: View {
                 }
             }
             .padding(.horizontal, 10)
-            .frame(height: 34)
+            .frame(width: baseChipsWidth > 0 ? baseChipsWidth : nil, height: 34)
             .background(Color.white.opacity(0.05))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
             .overlay(IBeamCursorArea().allowsHitTesting(false))
 
+            Spacer()
+
             Button {
+                vm.notchClose()
                 SettingsWindowController.shared.showWindow(vm: vm)
             } label: {
                 Image(systemName: "gearshape")
@@ -239,39 +243,41 @@ private struct ClipboardView: View {
     var filterRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                FilterChip(icon: "star.fill", isSelected: selectedFilter == .favorites) {
-                    withAnimation(vm.contentAnimation) {
-                        selectedFilter = selectedFilter == .favorites ? .all : .favorites
+                HStack(spacing: 6) {
+                    FilterChip(icon: "star.fill", isSelected: selectedFilter == .favorites) {
+                        withAnimation(vm.contentAnimation) {
+                            selectedFilter = selectedFilter == .favorites ? .all : .favorites
+                        }
                     }
-                }
-                FilterChip(icon: "square.2.layers.3d", isSelected: showTypes) {
-                    withAnimation(vm.contentAnimation) {
-                        showTypes.toggle()
-                        if !showTypes { selectedContentType = nil }
-                        if showTypes { showSources = false; selectedSource = nil }
+                    FilterChip(icon: "square.2.layers.3d", isSelected: showTypes) {
+                        withAnimation(vm.contentAnimation) {
+                            showTypes.toggle()
+                            if !showTypes { selectedContentType = nil }
+                            if showTypes { showSources = false; selectedSource = nil }
+                        }
                     }
-                }
-                FilterChip(icon: "app.background.dotted", isSelected: showSources) {
-                    withAnimation(vm.contentAnimation) {
-                        showSources.toggle()
-                        if !showSources { selectedSource = nil }
-                        if showSources { showTypes = false; selectedContentType = nil }
+                    FilterChip(icon: "app.background.dotted", isSelected: showSources) {
+                        withAnimation(vm.contentAnimation) {
+                            showSources.toggle()
+                            if !showSources { selectedSource = nil }
+                            if showSources { showTypes = false; selectedContentType = nil }
+                        }
                     }
+                    Button {
+                        selectedFilter = .all
+                        selectedSource = nil
+                    } label: {
+                        Text("All")
+                            .font(.system(size: 13, weight: .medium))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 5)
+                            .background(allSelected ? Color.white : Color.white.opacity(0.1))
+                            .foregroundStyle(allSelected ? Color.black : Color.white)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
-
-                Button {
-                    selectedFilter = .all
-                    selectedSource = nil
-                } label: {
-                    Text("All")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 5)
-                        .background(allSelected ? Color.white : Color.white.opacity(0.1))
-                        .foregroundStyle(allSelected ? Color.black : Color.white)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { baseChipsWidth = $0 }
 
                 if showSources {
                     ForEach(sources) { source in
