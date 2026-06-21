@@ -74,7 +74,8 @@ class ClipboardStore: ObservableObject {
             timestamp: Date(),
             appBundleID: frontApp?.bundleIdentifier,
             appName: frontApp?.localizedName,
-            isFavorite: false
+            isFavorite: false,
+            contentType: ClipboardStore.detectContentType(text)
         )
 
         items.insert(item, at: 0)
@@ -140,6 +141,30 @@ class ClipboardStore: ObservableObject {
         guard let data = try? Data(contentsOf: storageURL),
               let decoded = try? JSONDecoder().decode([ClipboardItem].self, from: data)
         else { return }
-        items = decoded
+        // Retroactively classify items that predate contentType (they default to .text)
+        items = decoded.map { item in
+            guard item.contentType == .text else { return item }
+            let detected = ClipboardStore.detectContentType(item.text)
+            guard detected != .text else { return item }
+            var updated = item
+            updated.contentType = detected
+            return updated
+        }
+    }
+
+    // NSDataDetector checks whether the ENTIRE trimmed string is a URL.
+    static func detectContentType(_ text: String) -> ClipboardItem.ContentType {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        else { return .text }
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        let matches = detector.matches(in: trimmed, range: range)
+        // Exactly one match covering the full string → it's a pure URL
+        if matches.count == 1, let match = matches.first, match.range == range {
+            return .url
+        }
+        return .text
     }
 }
+

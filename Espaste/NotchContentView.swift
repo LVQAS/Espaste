@@ -302,8 +302,19 @@ private struct ClipboardItemCard: View {
 
     @State private var isHovered = false
     @State private var showCopied = false
+    @ObservedObject private var previewCache = LinkPreviewCache.shared
 
     private var topRowVisible: Bool { isHovered || isSelecting || showCopied }
+
+    private var domain: String? {
+        guard item.contentType == .url else { return nil }
+        return LinkPreviewCache.mainDomain(from: item.text)
+    }
+
+    private var previewImage: NSImage? {
+        guard item.contentType == .url else { return nil }
+        return previewCache.image(for: item.text)
+    }
 
     private func handleTap() {
         onTap()
@@ -333,6 +344,7 @@ private struct ClipboardItemCard: View {
                     SelectionButton(
                         isSelecting: isSelecting,
                         isSelected: isSelected,
+                        contentType: item.contentType,
                         action: onToggleSelect
                     )
                 }
@@ -353,18 +365,34 @@ private struct ClipboardItemCard: View {
             .opacity(topRowVisible ? 1 : 0)
             .animation(.easeInOut(duration: 0.15), value: showCopied)
 
-            Divider().opacity(0.12)
+            Divider().opacity(previewImage == nil ? 0.12 : 0)
 
-            Text(item.text)
-                .font(.system(size: 12))
-                .foregroundStyle(.primary)
-                .lineLimit(3)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
-                .onTapGesture { isSelecting ? onToggleSelect() : handleTap() }
+            Group {
+                if let domain {
+                    Text(domain)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                } else {
+                    Text(item.text)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { isSelecting ? onToggleSelect() : handleTap() }
+            .onAppear {
+                if item.contentType == .url { previewCache.fetch(for: item.text) }
+            }
 
             Divider().opacity(0.12)
 
@@ -388,7 +416,22 @@ private struct ClipboardItemCard: View {
             .padding(.vertical, 6)
         }
         .frame(width: 160, height: 112)
-        .background(Color(red: 31/255, green: 31/255, blue: 31/255))
+        .background {
+            if let preview = previewImage {
+                Image(nsImage: preview)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .overlay(
+                        LinearGradient(
+                            colors: [.black.opacity(0.05), .black.opacity(0.65)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            } else {
+                Color(red: 31/255, green: 31/255, blue: 31/255)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -509,12 +552,19 @@ enum ClipboardDrag {
 private struct SelectionButton: View {
     let isSelecting: Bool
     let isSelected: Bool
+    var contentType: ClipboardItem.ContentType = .text
     let action: () -> Void
 
     @State private var isHovered = false
 
-    // Show a circle while selecting, or when hovering the button in normal mode.
     private var showsCircle: Bool { isSelecting || isHovered }
+
+    private var typeIcon: String {
+        switch contentType {
+        case .url:  return "link"
+        case .text: return "text.alignleft"
+        }
+    }
 
     var body: some View {
         Button(action: action) {
@@ -531,7 +581,7 @@ private struct SelectionButton: View {
                             .font(.system(size: 17))
                     }
                 } else {
-                    Image(systemName: "text.alignleft")
+                    Image(systemName: typeIcon)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.55))
                         .frame(width: 28, height: 24)
