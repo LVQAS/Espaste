@@ -152,36 +152,43 @@ private struct ClipboardView: View {
 
     var searchBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 13))
-            TextField("Search", text: $searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .focused($searchFocused)
-            if !searchText.isEmpty {
-                Button { searchText = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 12))
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                TextField("Search", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .focused($searchFocused)
+                if !searchText.isEmpty {
+                    Button { searchText = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 10)
+            .frame(height: 34)
+            .background(Color.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+            .overlay(IBeamCursorArea().allowsHitTesting(false))
+
             Button {
                 vm.contentType = .menu
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 13))
+                Image(systemName: "gearshape")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 34)
-        .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
-        .overlay(IBeamCursorArea().allowsHitTesting(false))
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .frame(height: 44)
